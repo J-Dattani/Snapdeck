@@ -75,10 +75,31 @@ body{
   font-size: 1.12rem;
 }
 
+.greeting-wrap{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo{
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: color-mix(in srgb, var(--surface2) 70%, transparent);
+  border: 1px solid var(--border);
+}
+
 @media (min-width: 768px){
   #greetingLine.app-title{
     font-size: 1.28rem;
     letter-spacing: .15px;
+  }
+
+  .brand-logo{
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
   }
 }
 
