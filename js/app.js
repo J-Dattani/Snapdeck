@@ -107,7 +107,14 @@
   }
 
   function updateHeaderMeta_() {
-    if (headerUi.greetingLine) headerUi.greetingLine.textContent = greetingText_();
+    if (headerUi.greetingLine) {
+      const greetingTextEl = headerUi.greetingLine.querySelector(".greeting-text");
+      if (greetingTextEl) {
+        greetingTextEl.textContent = greetingText_();
+      } else {
+        headerUi.greetingLine.textContent = greetingText_();
+      }
+    }
 
     const sections = state && Array.isArray(state.sections) ? state.sections.length : 0;
     const links = state && Array.isArray(state.sections)

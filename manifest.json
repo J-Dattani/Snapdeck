@@ -1,6 +1,6 @@
 {
-  "name": "Dashboard",
-  "short_name": "Dashboard",
+  "name": "Snapdeck",
+  "short_name": "Snapdeck",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0b0f14",
