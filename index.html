@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b0f14" />
+
+  <title>Snapdeck</title>
+  <meta name="description" content="Personal shortcut dashboard" />
+
+  <link rel="manifest" href="./manifest.json" />
+
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body class="app-shell">
+  <div id="loadingOverlay" class="loading-overlay show" aria-live="polite" aria-label="Loading">
+    <div class="loading-card">
+      <div class="loading-row">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div>
+          <p class="loading-title">Snapdeck</p>
+          <p class="loading-sub">Syncing your dashboard…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header class="border-bottom app-header">
+    <div class="container py-3 d-flex align-items-center gap-2">
+      <div class="me-auto">
+        <div class="app-title" id="greetingLine">Hello, Jaymin</div>
+        <div class="app-subtitle">Snapdeck • Shortcuts. No noise.</div>
+        <div class="app-meta" aria-hidden="true">
+          <span class="meta-chip" id="metaSections">Sections: 0</span>
+          <span class="meta-chip" id="metaLinks">Links: 0</span>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <button id="btnTheme" class="btn btn-sm btn-outline-secondary icon-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+          <span class="btn-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3a1 1 0 0 1 1 1v1"/>
+              <path d="M12 19a1 1 0 0 1 1 1v1"/>
+              <path d="M4 12a1 1 0 0 1 1-1h1"/>
+              <path d="M18 12a1 1 0 0 1 1-1h1"/>
+              <path d="M6.3 6.3l.7.7"/>
+              <path d="M17 17l.7.7"/>
+              <path d="M6.3 17.7l.7-.7"/>
+              <path d="M17 7l.7-.7"/>
+              <circle cx="12" cy="12" r="4"/>
+            </svg>
+          </span>
+          <span class="btn-label d-none d-sm-inline">Theme</span>
+        </button>
+
+        <button id="btnRefresh" class="btn btn-sm btn-outline-secondary icon-btn" type="button" aria-label="Refresh" title="Refresh">
+          <span class="btn-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 1-15.3 6.4"/>
+              <path d="M3 12a9 9 0 0 1 15.3-6.4"/>
+              <path d="M3 19v-4h4"/>
+              <path d="M21 5v4h-4"/>
+            </svg>
+          </span>
+          <span class="btn-label d-none d-sm-inline">Refresh</span>
+        </button>
+
+        <button id="btnAddSection" class="btn btn-sm btn-primary icon-btn" type="button" aria-label="Add section" title="Add section">
+          <span class="btn-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14"/>
+              <path d="M5 12h14"/>
+            </svg>
+          </span>
+          <span class="btn-label d-none d-sm-inline">Add section</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container py-3 py-md-4 app-main">
+    <div id="statusBar" class="small mb-3" role="status" aria-live="polite"></div>
+
+    <div id="emptyState" class="empty-state d-none">
+      <div class="empty-state-inner">
+        <div class="empty-state-title">No sections yet</div>
+        <div class="empty-state-text">Add a section to start.</div>
+        <button id="btnAddSectionEmpty" class="btn btn-primary btn-sm" type="button">Add section</button>
+      </div>
+    </div>
+
+    <div id="sectionsRoot" class="vstack gap-3"></div>
+  </main>
+
+  <footer class="app-footer mt-auto">
+    <div class="container py-3">
+      <div class="footer-inner">
+        <span class="footer-left">Made with care by Jaymin Dattani</span>
+        <span class="footer-right">Private • Stored in Google Drive</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modals -->
+  <div class="modal fade" id="modalSection" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalSectionTitle">Section</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formSection" class="vstack gap-2">
+            <input type="hidden" id="sectionId" />
+            <div>
+              <label class="form-label" for="sectionName">Section name</label>
+              <input id="sectionName" class="form-control" type="text" autocomplete="off" required maxlength="60" />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" form="formSection" class="btn btn-primary" id="btnSaveSection">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalLink" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalLinkTitle">Link</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formLink" class="vstack gap-2">
+            <input type="hidden" id="linkSectionId" />
+            <input type="hidden" id="linkId" />
+            <div>
+              <label class="form-label" for="linkName">Link Name</label>
+              <input id="linkName" class="form-control" type="text" autocomplete="off" required maxlength="80" />
+            </div>
+            <div>
+              <label class="form-label" for="linkUrl">Link URL</label>
+              <input id="linkUrl" class="form-control" type="url" inputmode="url" autocomplete="off" required placeholder="https://example.com" />
+              <div class="form-text">Include https://</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" form="formLink" class="btn btn-primary" id="btnSaveLink">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalConfirm" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalConfirmTitle">Confirm</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modalConfirmBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmDanger">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
