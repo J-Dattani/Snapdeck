@@ -73,6 +73,7 @@
     pinView: document.getElementById("pinView"),
     pinInput: document.getElementById("pinInput"),
     btnBioAuth: document.getElementById("btnBioAuth"),
+    btnPinDel: document.getElementById("btnPinDel"),
     setupView: document.getElementById("setupView"),
     setupPin: document.getElementById("setupPin"),
     setupPinConfirm: document.getElementById("setupPinConfirm"),
