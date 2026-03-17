@@ -780,3 +780,15 @@ button,
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
+
+/* Pinned Section Card */
+.section--pinned {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent), var(--shadow);
+}
+
+.pin-badge {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  user-select: none;
+}

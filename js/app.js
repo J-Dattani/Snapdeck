@@ -442,6 +442,10 @@
     if (!state.auth) {
       state.auth = { pin: "", trustedDevices: [] };
     }
+    // Also ensure sections array exists
+    if (!Array.isArray(state.sections)) {
+      state.sections = [];
+    }
     
     state.auth.pin = p1;
     try {
@@ -570,6 +574,34 @@
     }
   }
 
+  async function pinSection(sectionId) {
+    const section = state.sections.find(s => s.id === sectionId);
+    if (!section) return;
+
+    const isSelf = section.isPinned;
+
+    if (isSelf) {
+      // Unpin it
+      section.isPinned = false;
+    } else {
+      // Check if another section is already pinned
+      const alreadyPinned = state.sections.find(s => s.isPinned);
+      if (alreadyPinned) {
+        const ok = confirm(`"${alreadyPinned.name}" is currently pinned.\n\nUnpin it and pin "${section.name}" instead?`);
+        if (!ok) return;
+        alreadyPinned.isPinned = false;
+      }
+      section.isPinned = true;
+    }
+
+    render();
+    try {
+      await saveState();
+    } catch (err) {
+      alert("Failed to save pin: " + err.message);
+    }
+  }
+
   // ----------------------------
   // Rendering
   // ----------------------------
@@ -584,22 +616,29 @@
 
     if (!hasSections) return;
 
-    for (const section of state.sections) {
+    // Sort: pinned section first, rest alphabetically
+    const sorted = [...state.sections].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    for (const section of sorted) {
       el.sectionsRoot.appendChild(renderSection(section));
     }
   }
 
   function renderSection(section) {
     const wrap = document.createElement("section");
-    wrap.className = "section";
+    wrap.className = "section" + (section.isPinned ? " section--pinned" : "");
     wrap.dataset.sectionId = section.id;
 
     const header = document.createElement("div");
     header.className = "section-header d-flex align-items-center gap-2";
 
     const title = document.createElement("h2");
-    title.className = "section-title fs-6 me-auto";
-    title.textContent = section.name;
+    title.className = "section-title fs-6 me-auto d-flex align-items-center gap-1";
+    title.innerHTML = `${section.name}${section.isPinned ? ' <span class="pin-badge" title="Pinned">📌</span>' : ""}`;
 
     const actions = document.createElement("div");
     actions.className = "section-actions d-flex align-items-center gap-1";
@@ -628,11 +667,16 @@
     miEdit.innerHTML = `<button class="dropdown-item" type="button">Edit section</button>`;
     miEdit.querySelector("button").addEventListener("click", () => openSectionModal("edit", section.id));
 
+    const miPin = document.createElement("li");
+    miPin.innerHTML = `<button class="dropdown-item" type="button">${section.isPinned ? "📌 Unpin section" : "📌 Pin section"}</button>`;
+    miPin.querySelector("button").addEventListener("click", () => pinSection(section.id));
+
     const miDelete = document.createElement("li");
     miDelete.innerHTML = `<button class="dropdown-item danger" type="button">Delete section</button>`;
     miDelete.querySelector("button").addEventListener("click", () => confirmDeleteSection(section.id));
 
     menu.appendChild(miEdit);
+    menu.appendChild(miPin);
     menu.appendChild(miDelete);
 
     dropdown.appendChild(kebab);
