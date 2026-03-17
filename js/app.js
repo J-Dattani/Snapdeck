@@ -297,6 +297,12 @@
     if (overlay) overlay.classList.add("show");
     const res = await apiRequest("GET", "?op=get", undefined);
     state = res && res.data ? res.data : res;
+    
+    // Ensure auth object exists
+    if (!state.auth) {
+      state.auth = { pin: "", trustedDevices: [] };
+    }
+    
     dirty = false;
     setConnectedStatus_();
     if (overlay) overlay.classList.remove("show");
@@ -410,6 +416,7 @@
       return;
     }
     
+    if (!state.auth) state.auth = { pin: "", trustedDevices: [] };
     state.auth.pin = p1;
     try {
       await saveState();
@@ -948,7 +955,13 @@
     } catch (err) {
       // If API not configured or unavailable, show empty state.
       setStatus(assertApiConfigured() ? `Load failed: ${err.message}` : el.statusBar.textContent);
-      state = { version: 1, updatedAt: nowIso(), sections: [] };
+      state = { 
+        version: 1, 
+        updatedAt: nowIso(), 
+        auth: { pin: "", trustedDevices: [] },
+        sections: [] 
+      };
+      checkAuth();
       render();
     }
 
