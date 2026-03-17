@@ -6,7 +6,7 @@
 
   // 1) CONFIG (you will paste your Apps Script Web App URL here)
   // Example: https://script.google.com/macros/s/AKfycb....../exec
-  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbzI4vRvkVhZxrXm7H4U1EbwHcqdc3SbbA-pY6ZwniH-JHZApEJRDQBrnSj2chAEtQv7/exec";
+  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbzaqWc1nCfn1OXQPE0oHWX_CnO5gRcXYqlDWqPNu4ji7qJpYOt_DDFLW9C1fAkGna3g/exec";
 
   function normalizeApiBaseUrl_(raw) {
     const s = String(raw || "").trim();
@@ -26,7 +26,10 @@
   const SESSION_AUTH_KEY = "snapdeck_auth_session";
   
   let dirty = false;
+  let isLoaded = false;
   let statusRevertTimer = null;
+  let inactivityTimer = null;
+  const INACTIVITY_LIMIT = 60000; // 1 minute
 
   // 4) Bootstrap helpers
   const bs = {
@@ -43,6 +46,7 @@
     emptyState: document.getElementById("emptyState"),
 
     btnTheme: document.getElementById("btnTheme"),
+    btnSettings: document.getElementById("btnSettings"),
     btnRefresh: document.getElementById("btnRefresh"),
     btnAddSection: document.getElementById("btnAddSection"),
     btnAddSectionEmpty: document.getElementById("btnAddSectionEmpty"),
@@ -85,6 +89,7 @@
     btnChangePin: document.getElementById("btnChangePin"),
     btnLockNow: document.getElementById("btnLockNow"),
     deviceCount: document.getElementById("deviceCount"),
+    deviceList: document.getElementById("deviceList"),
   };
 
   const headerUi = {
@@ -262,6 +267,8 @@
     const url = `${base}${path}`;
     const opts = { method };
 
+    console.log(`[API] ${method} ${url}`);
+
     if (body !== undefined) {
       // Send as text/plain to avoid CORS preflight from static hosts (GitHub Pages).
       // Server still parses JSON from the raw string.
@@ -295,21 +302,29 @@
     setStatus("Loading…");
     const overlay = document.getElementById("loadingOverlay");
     if (overlay) overlay.classList.add("show");
-    const res = await apiRequest("GET", "?op=get", undefined);
-    state = res && res.data ? res.data : res;
-    
-    // Ensure auth object exists
-    if (!state.auth) {
-      state.auth = { pin: "", trustedDevices: [] };
+    try {
+      const res = await apiRequest("GET", "?op=get", undefined);
+      state = res && res.data ? res.data : res;
+      
+      // Ensure auth object exists
+      if (!state.auth) {
+        state.auth = { pin: "", trustedDevices: [] };
+      }
+      
+      dirty = false;
+      setConnectedStatus_();
+      updateHeaderMeta_();
+      isLoaded = true;
+    } finally {
+      if (overlay) overlay.classList.remove("show");
     }
-    
-    dirty = false;
-    setConnectedStatus_();
-    if (overlay) overlay.classList.remove("show");
-    updateHeaderMeta_();
   }
 
   async function saveState() {
+    if (!isLoaded) {
+      console.warn("Save aborted: Data not yet loaded from Drive.");
+      return;
+    }
     if (!state) return;
     state.updatedAt = nowIso();
     dirty = true;
@@ -336,15 +351,20 @@
   // ----------------------------
 
   function checkAuth() {
-    if (sessionStorage.getItem(SESSION_AUTH_KEY) === "1") {
-      unlockDashboard();
-      return;
-    }
-
     if (!state || !state.auth || !state.auth.pin) {
       showSetup();
     } else {
       showLock();
+    }
+  }
+
+  function resetInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    if (authenticated) {
+      inactivityTimer = setTimeout(() => {
+        console.log("Auto-locking due to inactivity.");
+        showLock();
+      }, INACTIVITY_LIMIT);
     }
   }
 
@@ -372,7 +392,7 @@
 
   function unlockDashboard() {
     authenticated = true;
-    sessionStorage.setItem(SESSION_AUTH_KEY, "1");
+    resetInactivityTimer();
     el.authScreen.classList.remove("show");
     render();
   }
@@ -416,7 +436,13 @@
       return;
     }
     
-    if (!state.auth) state.auth = { pin: "", trustedDevices: [] };
+    if (!state) {
+      state = { version: 1, updatedAt: nowIso(), auth: { pin: "", trustedDevices: [] }, sections: [] };
+    }
+    if (!state.auth) {
+      state.auth = { pin: "", trustedDevices: [] };
+    }
+    
     state.auth.pin = p1;
     try {
       await saveState();
@@ -436,11 +462,19 @@
     const challenge = new Uint8Array(32);
     window.crypto.getRandomValues(challenge);
 
+    const rpId = window.location.hostname;
+    const isIP = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(rpId);
+
+    if (isIP) {
+      alert("Biometric Security (Windows Hello/Fingerprint) does not work on IP addresses like 127.0.0.1.\n\nPlease open the app using 'http://localhost:5500' instead of '127.0.0.1'.");
+      return;
+    }
+
     const userID = uid("user");
     const options = {
       publicKey: {
         challenge,
-        rp: { name: "Snapdeck" },
+        rp: { name: "Snapdeck", id: rpId },
         user: {
           id: Uint8Array.from(userID, c => c.charCodeAt(0)),
           name: "Jaymin",
@@ -497,8 +531,43 @@
   }
 
   function updateSecurityMeta() {
-    const count = state?.auth?.trustedDevices?.length || 0;
+    const devices = state?.auth?.trustedDevices || [];
+    const count = devices.length;
     el.deviceCount.textContent = `${count} trusted device${count === 1 ? "" : "s"} registered`;
+
+    // Render Device List
+    if (el.deviceList) {
+      el.deviceList.innerHTML = "";
+      devices.forEach(d => {
+        const item = document.createElement("div");
+        item.className = "device-item";
+        item.innerHTML = `
+          <span>${d.name || "Unknown Device"}</span>
+          <button class="btn-remove" title="Remove device">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        `;
+        item.querySelector(".btn-remove").addEventListener("click", () => removeDevice(d.id));
+        el.deviceList.appendChild(item);
+      });
+    }
+  }
+
+  async function removeDevice(deviceId) {
+    if (!confirm("Are you sure you want to remove this trusted device? You will need to use your PIN to log in next time on that device.")) {
+      return;
+    }
+
+    state.auth.trustedDevices = state.auth.trustedDevices.filter(d => d.id !== deviceId);
+    try {
+      await saveState();
+      updateSecurityMeta();
+    } catch (err) {
+      alert("Failed to remove device: " + err.message);
+    }
   }
 
   // ----------------------------
@@ -886,7 +955,6 @@
   }
 
   function lockNow() {
-    sessionStorage.removeItem(SESSION_AUTH_KEY);
     bs.settingsModal.hide();
     showLock();
   }
@@ -898,16 +966,45 @@
   async function init() {
     initTheme();
 
-    bs.sectionModal = new bootstrap.Modal(el.modalSection, { backdrop: "static" });
-    bs.linkModal = new bootstrap.Modal(el.modalLink, { backdrop: "static" });
-    bs.confirmModal = new bootstrap.Modal(el.modalConfirm, { backdrop: "static" });
-    bs.settingsModal = new bootstrap.Modal(el.modalSettings);
+    if (window.bootstrap) {
+      bs.sectionModal = new bootstrap.Modal(el.modalSection, { backdrop: "static" });
+      bs.linkModal = new bootstrap.Modal(el.modalLink, { backdrop: "static" });
+      bs.confirmModal = new bootstrap.Modal(el.modalConfirm, { backdrop: "static" });
+      bs.settingsModal = new bootstrap.Modal(el.modalSettings);
+    } else {
+      console.error("Bootstrap not found. Modals will not work.");
+      setStatus("Error: UI Library (Bootstrap) blocked. Check your connection or tracking blockers.", { variant: "err" });
+    }
 
-    el.btnTheme.addEventListener("click", openSettings); // Changed to open settings
+    if (el.btnTheme) {
+      el.btnTheme.addEventListener("click", toggleTheme);
+    }
+    if (el.btnSettings) {
+      el.btnSettings.addEventListener("click", openSettings);
+    }
+
+    // Inactivity Tracking
+    ["mousemove", "keydown", "scroll", "touchstart"].forEach(evt => {
+      window.addEventListener(evt, resetInactivityTimer, { passive: true });
+    });
     
-    // PIN Pad
+    // PIN Pad Digit buttons
     document.querySelectorAll(".pin-btn[data-val]").forEach(btn => {
       btn.addEventListener("click", () => onPinInput(btn.dataset.val));
+    });
+
+    // Keyboard Entry for PIN
+    window.addEventListener("keydown", (e) => {
+      if (authenticated) return; // Don't intercept when unlocked
+      
+      // Digits 0-9
+      if (e.key >= "0" && e.key <= "9") {
+        onPinInput(e.key);
+      }
+      // Backspace
+      else if (e.key === "Backspace") {
+        onPinDel();
+      }
     });
     el.btnPinDel.addEventListener("click", onPinDelete);
     el.btnBioAuth.addEventListener("click", authenticateBiometric);

@@ -12,13 +12,6 @@
 
 const DATA_FILE_NAME = "dashboard.json";
 
-// Minimal CORS support for browser fetch (localhost/GitHub Pages, etc.).
-// Apps Script Web Apps will send a CORS preflight (OPTIONS) for certain requests.
-function doOptions(e) {
-  // Respond to preflight requests.
-  return cors_(ContentService.createTextOutput(""));
-}
-
 function doGet(e) {
   return route_("GET", e);
 }
@@ -42,8 +35,30 @@ function route_(method, e) {
         return jsonErr_("Missing body.data");
       }
 
-      // Basic validation: enforce expected shape
-      const cleaned = normalizeData_(body.data);
+      // 1) Read existing data from Drive
+      const existing = readOrInit_();
+      const incoming = body.data;
+
+      // 2) Merge Auth (PIN/Devices)
+      if (incoming.auth) {
+        existing.auth = {
+          pin: (incoming.auth.pin) ? String(incoming.auth.pin).slice(0, 4) : existing.auth.pin,
+          trustedDevices: (incoming.auth.trustedDevices && incoming.auth.trustedDevices.length > 0) 
+            ? incoming.auth.trustedDevices 
+            : existing.auth.trustedDevices
+        };
+      }
+
+      // 3) Merge Sections (Only if incoming has data, preserve existing if not)
+      if (incoming.sections && incoming.sections.length > 0) {
+        existing.sections = incoming.sections;
+      }
+      
+      // Update timestamp
+      existing.updatedAt = new Date().toISOString();
+
+      // 4) Normalize and Write
+      const cleaned = normalizeData_(existing);
       write_(cleaned);
       return jsonOk_({ ok: true });
     }
@@ -72,20 +87,9 @@ function jsonErr_(message) {
 function json_(obj) {
   // Always return JSON payload. Web Apps use 200 for ContentService responses.
   // The client should rely on { ok: true/false }.
-  const out = ContentService
+  return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-  return cors_(out);
-}
-
-function cors_(output) {
-  // Use '*' to keep it simple for a personal dashboard.
-  // If you want to lock it down later, replace '*' with your GitHub Pages origin.
-  return output
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type")
-    .setHeader("Access-Control-Max-Age", "3600");
 }
 
 function readOrInit_() {
@@ -143,15 +147,18 @@ function normalizeData_(data) {
 
   const sections = (data && Array.isArray(data.sections)) ? data.sections : [];
 
-  out.sections = sections.map(s => ({
-    id: String(s.id || ""),
-    name: String(s.name || "").slice(0, 60),
-    links: (Array.isArray(s.links) ? s.links : []).map(l => ({
-      id: String(l.id || ""),
-      name: String(l.name || "").slice(0, 80),
-      url: String(l.url || "")
-    })).filter(l => l.id && l.name && l.url)
-  })).filter(s => s.id && s.name);
+  out.sections = sections.map(s => {
+    const sId = String(s.id || "sec_" + Math.random().toString(36).slice(2, 9));
+    return {
+      id: sId,
+      name: String(s.name || "Untitled Section").slice(0, 60),
+      links: (Array.isArray(s.links) ? s.links : []).map(l => ({
+        id: String(l.id || "lnk_" + Math.random().toString(36).slice(2, 9)),
+        name: String(l.name || "Untitled Link").slice(0, 80),
+        url: String(l.url || "")
+      })).filter(l => l.url)
+    };
+  }).filter(s => s.name);
 
   return out;
 }
@@ -163,6 +170,6 @@ function getOrCreateFile_() {
   }
 
   // Create new file in the root of Drive
-  const init = defaultData_();
+  const init = defaultData_();  
   return DriveApp.createFile(DATA_FILE_NAME, JSON.stringify(init), MimeType.PLAIN_TEXT);
 }

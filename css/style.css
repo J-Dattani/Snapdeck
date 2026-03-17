@@ -370,20 +370,20 @@ button,
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
-/* Make theme toggle feel special (clingy) */
-#btnTheme{
+/* Make settings button feel special */
+#btnSettings{
   position: relative;
 }
 
-#btnTheme:hover{
+#btnSettings:hover{
   border-color: var(--border2) !important;
 }
 
-[data-bs-theme="dark"] #btnTheme:hover{
+[data-bs-theme="dark"] #btnSettings:hover{
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 8px 22px rgba(0,0,0,.28);
 }
 
-[data-bs-theme="light"] #btnTheme:hover{
+[data-bs-theme="light"] #btnSettings:hover{
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent), 0 10px 24px rgba(15,23,42,.12);
 }
 
@@ -743,4 +743,40 @@ button,
 
 .shake {
   animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Device Management */
+.device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 0.8);
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.device-item:hover {
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border-color: var(--border2);
+}
+
+.device-item .btn-remove {
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.device-item .btn-remove:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
