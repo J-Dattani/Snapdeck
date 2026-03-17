@@ -33,20 +33,18 @@
   </div>
 
   <header class="border-bottom app-header">
-    <div class="container py-3 d-flex align-items-center gap-2">
-      <div class="me-auto">
+    <div class="container py-3 app-header-inner">
+      <!-- Left/Top: Brand & Greeting -->
+      <div class="app-header-branding">
         <div class="app-title greeting-wrap" id="greetingLine">
           <img class="brand-logo" src="./snapdeck_logo.png" width="36" height="36" alt="Snapdeck" decoding="async" />
           <span class="greeting-text">Hello, Jaymin</span>
         </div>
         <div class="app-subtitle">Snapdeck • Shortcuts. No noise.</div>
-        <div class="app-meta" aria-hidden="true">
-          <span class="meta-chip" id="metaSections">Sections: 0</span>
-          <span class="meta-chip" id="metaLinks">Links: 0</span>
-        </div>
       </div>
 
-      <div class="d-flex align-items-center gap-2">
+      <!-- Right/Middle: Actions -->
+      <div class="app-header-actions">
         <button id="btnTheme" class="btn btn-sm btn-outline-secondary icon-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
           <span class="btn-ico" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -95,6 +93,14 @@
           </span>
           <span class="btn-label d-none d-sm-inline">Add section</span>
         </button>
+      </div>
+
+      <!-- Bottom: Meta Status -->
+      <div class="app-header-meta">
+        <div class="app-meta" aria-hidden="true">
+          <span class="meta-chip" id="metaSections">Sections: 0</span>
+          <span class="meta-chip" id="metaLinks">Links: 0</span>
+        </div>
       </div>
     </div>
   </header>

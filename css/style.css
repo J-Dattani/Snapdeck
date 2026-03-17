@@ -64,6 +64,87 @@ body{
   border-bottom-color: var(--border) !important;
 }
 
+.app-header-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.app-header-branding {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.greeting-wrap {
+  display: flex; /* Changed from inline-flex */
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap; /* Safety for small devices */
+}
+
+.app-header-meta {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.app-meta {
+  margin-top: 0; /* Resetting old margin */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .app-header-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 
+      "brand actions"
+      "meta actions";
+    column-gap: 32px;
+    row-gap: 6px;
+    text-align: left;
+    align-items: center;
+  }
+  
+  .app-header-branding { 
+    grid-area: brand; 
+    align-items: flex-start;
+  }
+  
+  .greeting-wrap {
+    justify-content: flex-start;
+  }
+
+  .app-header-actions { 
+    grid-area: actions; 
+    margin-left: auto;
+  }
+
+  .app-header-meta { 
+    grid-area: meta; 
+    display: flex; 
+    justify-content: flex-start;
+  }
+  
+  .app-meta {
+    justify-content: flex-start;
+  }
+}
+
 .app-title{
   font-weight: 650;
   letter-spacing: .1px;
@@ -73,12 +154,7 @@ body{
 /* Make greeting headline-like */
 #greetingLine.app-title{
   font-size: 1.12rem;
-}
-
-.greeting-wrap{
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  margin-bottom: 0;
 }
 
 .brand-logo{
@@ -88,24 +164,26 @@ body{
   object-fit: contain;
   background: color-mix(in srgb, var(--surface2) 70%, transparent);
   border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px){
   #greetingLine.app-title{
-    font-size: 1.28rem;
+    font-size: 1.35rem; /* Slightly larger for premium feel */
     letter-spacing: .15px;
   }
 
   .brand-logo{
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: 12px;
   }
 }
 
 .app-subtitle{
-  font-size: .85rem;
+  font-size: .88rem;
   color: var(--muted);
+  font-weight: 500;
 }
 
 .app-meta{
