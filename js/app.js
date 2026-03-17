@@ -136,6 +136,10 @@
     return "Hello, Jaymin";
   }
 
+  function haptic(pattern = 10) {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  }
+
   function updateHeaderMeta_() {
     if (headerUi.greetingLine) {
       const greetingTextEl = headerUi.greetingLine.querySelector(".greeting-text");
@@ -398,6 +402,7 @@
   }
 
   function onPinInput(digit) {
+    haptic(15);
     if (pinBuffer.length >= 4) return;
     pinBuffer += digit;
     el.pinInput.value = "•".repeat(pinBuffer.length);
@@ -408,14 +413,17 @@
   }
 
   function onPinDelete() {
+    haptic(10);
     pinBuffer = pinBuffer.slice(0, -1);
     el.pinInput.value = "•".repeat(pinBuffer.length);
   }
 
   function verifyPin() {
     if (pinBuffer === state.auth.pin) {
+      haptic([30, 50, 30]);
       unlockDashboard();
     } else {
+      haptic([100, 50, 100]);
       el.authScreen.classList.add("shake");
       setTimeout(() => el.authScreen.classList.remove("shake"), 400);
       pinBuffer = "";
@@ -528,6 +536,7 @@
 
     try {
       await navigator.credentials.get(options);
+      haptic([30, 50, 30]);
       unlockDashboard();
     } catch (err) {
       console.warn("Biometric failed or cancelled", err);
