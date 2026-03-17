@@ -6,7 +6,7 @@
 
   // 1) CONFIG (you will paste your Apps Script Web App URL here)
   // Example: https://script.google.com/macros/s/AKfycb....../exec
-  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbzaqWc1nCfn1OXQPE0oHWX_CnO5gRcXYqlDWqPNu4ji7qJpYOt_DDFLW9C1fAkGna3g/exec";
+  const API_BASE_URL = "https://script.google.com/macros/s/AKfycbyt-59yAqJ3kwXDnb4Q7BkjTeDCtMab3NfuvM0MvrIWReM9mH0cAcYEfw_riU2LlfDn/exec";
 
   function normalizeApiBaseUrl_(raw) {
     const s = String(raw || "").trim();

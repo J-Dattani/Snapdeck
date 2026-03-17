@@ -12,6 +12,13 @@
 
 const DATA_FILE_NAME = "dashboard.json";
 
+// Minimal CORS support for browser fetch (localhost/GitHub Pages, etc.).
+// Apps Script Web Apps will send a CORS preflight (OPTIONS) for certain requests.
+function doOptions(e) {
+  // Respond to preflight requests.
+  return cors_(ContentService.createTextOutput(""));
+}
+
 function doGet(e) {
   return route_("GET", e);
 }
@@ -152,6 +159,7 @@ function normalizeData_(data) {
     return {
       id: sId,
       name: String(s.name || "Untitled Section").slice(0, 60),
+      isPinned: !!s.isPinned,
       links: (Array.isArray(s.links) ? s.links : []).map(l => ({
         id: String(l.id || "lnk_" + Math.random().toString(36).slice(2, 9)),
         name: String(l.name || "Untitled Link").slice(0, 80),
