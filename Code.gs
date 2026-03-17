@@ -118,6 +118,10 @@ function defaultData_() {
   return {
     version: 1,
     updatedAt: new Date().toISOString(),
+    auth: {
+      pin: "",
+      trustedDevices: []
+    },
     sections: []
   };
 }
@@ -126,6 +130,14 @@ function normalizeData_(data) {
   const out = {
     version: 1,
     updatedAt: (data && data.updatedAt) ? String(data.updatedAt) : new Date().toISOString(),
+    auth: {
+      pin: (data && data.auth && data.auth.pin) ? String(data.auth.pin).slice(0, 4) : "",
+      trustedDevices: (data && data.auth && Array.isArray(data.auth.trustedDevices)) ? data.auth.trustedDevices.map(d => ({
+        id: String(d.id || ""),
+        name: String(d.name || "").slice(0, 50),
+        publicKey: String(d.publicKey || "")
+      })).filter(d => d.id && d.publicKey) : []
+    },
     sections: []
   };
 

@@ -20,7 +20,11 @@
   const defaultTheme = "dark";
 
   // 3) In-memory state
-  let state = null; // {version, updatedAt, sections:[]}
+  let state = null; // {version, updatedAt, auth:{pin, trustedDevices:[]}, sections:[]}
+  let authenticated = false;
+  let pinBuffer = "";
+  const SESSION_AUTH_KEY = "snapdeck_auth_session";
+  
   let dirty = false;
   let statusRevertTimer = null;
 
@@ -29,6 +33,7 @@
     sectionModal: null,
     linkModal: null,
     confirmModal: null,
+    settingsModal: null,
   };
 
   // DOM
@@ -60,6 +65,25 @@
     modalConfirmTitle: document.getElementById("modalConfirmTitle"),
     modalConfirmBody: document.getElementById("modalConfirmBody"),
     btnConfirmDanger: document.getElementById("btnConfirmDanger"),
+    btnConfirmCancel: document.getElementById("btnConfirmCancel"),
+
+    // Auth & Security
+    authScreen: document.getElementById("authScreen"),
+    authSubtitle: document.getElementById("authSubtitle"),
+    pinView: document.getElementById("pinView"),
+    pinInput: document.getElementById("pinInput"),
+    btnBioAuth: document.getElementById("btnBioAuth"),
+    setupView: document.getElementById("setupView"),
+    setupPin: document.getElementById("setupPin"),
+    setupPinConfirm: document.getElementById("setupPinConfirm"),
+    btnSaveSetup: document.getElementById("btnSaveSetup"),
+    
+    modalSettings: document.getElementById("modalSettings"),
+    switchTheme: document.getElementById("switchTheme"),
+    btnRegisterBio: document.getElementById("btnRegisterBio"),
+    btnChangePin: document.getElementById("btnChangePin"),
+    btnLockNow: document.getElementById("btnLockNow"),
+    deviceCount: document.getElementById("deviceCount"),
   };
 
   const headerUi = {
@@ -207,6 +231,25 @@
     return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
   }
 
+  function base64ToUint8Array(base64) {
+    const binary = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+
+  function bufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
   // ----------------------------
   // API
   // ----------------------------
@@ -279,6 +322,175 @@
     }
 
     setConnectedStatus_();
+  }
+
+  // ----------------------------
+  // Security Logic
+  // ----------------------------
+
+  function checkAuth() {
+    if (sessionStorage.getItem(SESSION_AUTH_KEY) === "1") {
+      unlockDashboard();
+      return;
+    }
+
+    if (!state || !state.auth || !state.auth.pin) {
+      showSetup();
+    } else {
+      showLock();
+    }
+  }
+
+  function showLock() {
+    authenticated = false;
+    el.authScreen.classList.add("show");
+    el.pinView.classList.remove("d-none");
+    el.setupView.classList.add("d-none");
+    el.authSubtitle.textContent = "Locked for your privacy";
+    pinBuffer = "";
+    el.pinInput.value = "";
+    
+    // Auto-trigger biometrics if first device exists
+    if (state?.auth?.trustedDevices?.length > 0) {
+      authenticateBiometric();
+    }
+  }
+
+  function showSetup() {
+    el.authScreen.classList.add("show");
+    el.pinView.classList.add("d-none");
+    el.setupView.classList.remove("d-none");
+    el.authSubtitle.textContent = "Welcome! Let's get secured.";
+  }
+
+  function unlockDashboard() {
+    authenticated = true;
+    sessionStorage.setItem(SESSION_AUTH_KEY, "1");
+    el.authScreen.classList.remove("show");
+    render();
+  }
+
+  function onPinInput(digit) {
+    if (pinBuffer.length >= 4) return;
+    pinBuffer += digit;
+    el.pinInput.value = "•".repeat(pinBuffer.length);
+    
+    if (pinBuffer.length === 4) {
+      verifyPin();
+    }
+  }
+
+  function onPinDelete() {
+    pinBuffer = pinBuffer.slice(0, -1);
+    el.pinInput.value = "•".repeat(pinBuffer.length);
+  }
+
+  function verifyPin() {
+    if (pinBuffer === state.auth.pin) {
+      unlockDashboard();
+    } else {
+      el.authScreen.classList.add("shake");
+      setTimeout(() => el.authScreen.classList.remove("shake"), 400);
+      pinBuffer = "";
+      el.pinInput.value = "";
+    }
+  }
+
+  async function onSaveSetup() {
+    const p1 = el.setupPin.value;
+    const p2 = el.setupPinConfirm.value;
+    
+    if (p1.length !== 4 || isNaN(p1)) {
+      alert("PIN must be 4 digits.");
+      return;
+    }
+    if (p1 !== p2) {
+      alert("PINs do not match.");
+      return;
+    }
+    
+    state.auth.pin = p1;
+    try {
+      await saveState();
+      unlockDashboard();
+    } catch (err) {
+      alert("Failed to save PIN: " + err.message);
+    }
+  }
+
+  // WebAuthn Biometrics
+  async function registerBiometric() {
+    if (!window.PublicKeyCredential) {
+      alert("Biometrics not supported on this browser.");
+      return;
+    }
+
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+
+    const userID = uid("user");
+    const options = {
+      publicKey: {
+        challenge,
+        rp: { name: "Snapdeck" },
+        user: {
+          id: Uint8Array.from(userID, c => c.charCodeAt(0)),
+          name: "Jaymin",
+          displayName: "Jaymin Dattani"
+        },
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+        authenticatorSelection: { userVerification: "required" },
+        timeout: 60000
+      }
+    };
+
+    try {
+      const cred = await navigator.credentials.create(options);
+      const newDevice = {
+        id: cred.id,
+        name: navigator.userAgent.includes("Android") ? "Phone (Samsung)" : "Laptop (Windows Hello)",
+        publicKey: bufferToBase64(cred.rawId) // Simplified for single-user
+      };
+      
+      state.auth.trustedDevices.push(newDevice);
+      await saveState();
+      updateSecurityMeta();
+      alert("Device registered successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Registration failed: " + err.message);
+    }
+  }
+
+  async function authenticateBiometric() {
+    if (!state?.auth?.trustedDevices?.length) return;
+    
+    const challenge = new Uint8Array(32);
+    window.crypto.getRandomValues(challenge);
+
+    const options = {
+      publicKey: {
+        challenge,
+        allowCredentials: state.auth.trustedDevices.map(d => ({
+          id: base64ToUint8Array(d.id),
+          type: "public-key"
+        })),
+        userVerification: "required",
+        timeout: 60000
+      }
+    };
+
+    try {
+      await navigator.credentials.get(options);
+      unlockDashboard();
+    } catch (err) {
+      console.warn("Biometric failed or cancelled", err);
+    }
+  }
+
+  function updateSecurityMeta() {
+    const count = state?.auth?.trustedDevices?.length || 0;
+    el.deviceCount.textContent = `${count} trusted device${count === 1 ? "" : "s"} registered`;
   }
 
   // ----------------------------
@@ -659,6 +871,18 @@
     localStorage.setItem(THEME_KEY, next);
   }
 
+  function openSettings() {
+    updateSecurityMeta();
+    el.switchTheme.checked = document.documentElement.getAttribute("data-theme") === "dark";
+    bs.settingsModal.show();
+  }
+
+  function lockNow() {
+    sessionStorage.removeItem(SESSION_AUTH_KEY);
+    bs.settingsModal.hide();
+    showLock();
+  }
+
   // ----------------------------
   // Init
   // ----------------------------
@@ -669,8 +893,26 @@
     bs.sectionModal = new bootstrap.Modal(el.modalSection, { backdrop: "static" });
     bs.linkModal = new bootstrap.Modal(el.modalLink, { backdrop: "static" });
     bs.confirmModal = new bootstrap.Modal(el.modalConfirm, { backdrop: "static" });
+    bs.settingsModal = new bootstrap.Modal(el.modalSettings);
 
-    el.btnTheme.addEventListener("click", toggleTheme);
+    el.btnTheme.addEventListener("click", openSettings); // Changed to open settings
+    
+    // PIN Pad
+    document.querySelectorAll(".pin-btn[data-val]").forEach(btn => {
+      btn.addEventListener("click", () => onPinInput(btn.dataset.val));
+    });
+    el.btnPinDel.addEventListener("click", onPinDelete);
+    el.btnBioAuth.addEventListener("click", authenticateBiometric);
+    el.btnSaveSetup.addEventListener("click", onSaveSetup);
+
+    // Settings
+    el.switchTheme.addEventListener("change", toggleTheme);
+    el.btnRegisterBio.addEventListener("click", registerBiometric);
+    el.btnLockNow.addEventListener("click", lockNow);
+    el.btnChangePin.addEventListener("click", () => {
+      bs.settingsModal.hide();
+      showSetup();
+    });
 
     const openCreateSection = () => {
       if (!state) return;
@@ -695,6 +937,7 @@
     // Load initial state
     try {
       await loadState();
+      checkAuth(); // Added auth check
       render();
 
       if (!assertApiConfigured()) {
